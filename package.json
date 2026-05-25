@@ -1,0 +1,36 @@
+{
+  "name": "sgiq-alphastack",
+  "version": "0.1.0",
+  "description": "Multi-strategy crypto trading bot — momentum, mean reversion, trend following — with risk-management + drawdown kill switch. Paper-first via Alpaca.",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20.0.0" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prestart": "node dist/db/migrate.js && node dist/db/seed.js",
+    "start": "node dist/worker/cron.js",
+    "run:once": "tsx src/worker/runOnce.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.36.0",
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.0",
+    "undici": "^6.20.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.28.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
