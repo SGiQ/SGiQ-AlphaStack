@@ -24,15 +24,20 @@ async function main() {
         },
       },
       {
+        // Disabled after 2024-2025 backtest showed a 12.5% win rate and net
+        // negative P&L. The "4H not in downtrend" filter is insufficient —
+        // strategy buys dips that keep falling. Needs redesign before re-enabling.
+        // See: backtest results in commit history.
         name: 'mean_reversion_v1',
         kind: 'mean_reversion',
-        enabled: true,
+        enabled: false,
         weight: cfg.WEIGHT_MEAN_REVERSION.toFixed(4),
         params: {
           rsi_oversold: 30,
           bollinger_period: 20,
           bollinger_sigma: 2,
           timeframes: ['1Hour', '4Hour'],
+          disabled_reason: 'backtest 2024-2025: 12.5% win rate, net negative',
         },
       },
       {
@@ -59,6 +64,9 @@ async function main() {
     .onConflictDoUpdate({
       target: strategies.name,
       set: {
+        // Treat the seed file as source of truth for these fields. If you
+        // change enabled/weight/params here, the next deploy applies them.
+        enabled: sql`excluded.enabled`,
         weight: sql`excluded.weight`,
         params: sql`excluded.params`,
         updatedAt: new Date(),
