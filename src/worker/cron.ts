@@ -1,8 +1,11 @@
 import cron from 'node-cron';
 import { loadConfig } from '../config.js';
 import { runOnce } from '../engine/executor.js';
+import { startUi } from '../server/ui.js';
 
 const cfg = loadConfig();
+
+if (cfg.UI_ENABLED) startUi();
 
 console.log(`[cron] AlphaStack scheduled: "${cfg.CRON_SCHEDULE}" tz=${cfg.TZ} live=${cfg.LIVE_TRADING}`);
 console.log(`[cron] portfolio=$${cfg.PORTFOLIO_USD} risk/trade=${(cfg.RISK_PER_TRADE_PCT * 100).toFixed(1)}% max_concurrent=${cfg.MAX_CONCURRENT_POSITIONS}`);
