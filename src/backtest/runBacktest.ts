@@ -30,7 +30,7 @@ async function main() {
   console.log(`Running backtest: ${from} -> ${to}   cash=${cash}   symbols=${symbols.join(', ')}`);
   if (strategies) console.log(`Strategies: ${strategies.join(', ')}`);
 
-  const result = await runBacktest({
+  const baseCfg = {
     symbols,
     start: from,
     end: to,
@@ -39,10 +39,22 @@ async function main() {
     riskPerTradePct: cfg.RISK_PER_TRADE_PCT,
     maxConcurrent: cfg.MAX_CONCURRENT_POSITIONS,
     killSwitchPct: cfg.KILL_SWITCH_DRAWDOWN_PCT,
-    strategies,
-  });
+  };
 
-  printResultsTable(result);
+  const result = await runBacktest({ ...baseCfg, strategies });
+
+  // Auxiliary "momentum-only" replay for comparison — skip if the main
+  // backtest is already momentum-only or doesn't include momentum at all.
+  // Bars are cached on disk so this second pass is fast (no API hits).
+  let momentumOnly: typeof result | null = null;
+  const usingMomentum = !strategies || strategies.includes('momentum_breakout_v1');
+  const isMomentumOnly = strategies && strategies.length === 1 && strategies[0] === 'momentum_breakout_v1';
+  if (usingMomentum && !isMomentumOnly) {
+    console.log('\n[runBacktest] running momentum-only comparison...');
+    momentumOnly = await runBacktest({ ...baseCfg, strategies: ['momentum_breakout_v1'] });
+  }
+
+  printResultsTable(result, momentumOnly);
 
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const outDir = resolve(process.cwd(), 'backtest-data');
