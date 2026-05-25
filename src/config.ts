@@ -13,7 +13,10 @@ const schema = z.object({
   ALPACA_LIVE_BASE_URL: z.string().url().default('https://api.alpaca.markets'),
 
   // --- DB ---
-  DATABASE_URL: z.string().min(1),
+  // Optional in config because the backtester runs without a DB.
+  // The cron worker / executor / UI require it; getDb() throws if missing
+  // at the point of first use.
+  DATABASE_URL: z.string().optional(),
 
   // --- Capital ---
   PORTFOLIO_USD: z.coerce.number().positive().default(37_500),

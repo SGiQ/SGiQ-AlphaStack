@@ -9,6 +9,9 @@ let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
 export function getDb() {
   if (dbInstance) return dbInstance;
   const cfg = loadConfig();
+  if (!cfg.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required for this command but is not set');
+  }
   pool = new pg.Pool({ connectionString: cfg.DATABASE_URL, max: 5 });
   dbInstance = drizzle(pool, { schema });
   return dbInstance;

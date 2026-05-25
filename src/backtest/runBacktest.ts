@@ -1,8 +1,15 @@
 import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { runBacktest } from './replay.js';
 import { printResultsTable, writeEquityCsv, writeTradesCsv } from './results.js';
 import { loadConfig } from '../config.js';
+
+// Auto-load .env if present (Node 20.12+ native, no dep)
+const envPath = resolve(process.cwd(), '.env');
+if (existsSync(envPath) && typeof process.loadEnvFile === 'function') {
+  process.loadEnvFile(envPath);
+}
 
 /**
  * CLI:
