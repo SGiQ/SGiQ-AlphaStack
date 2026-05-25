@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
@@ -202,6 +202,18 @@ export function startUi(): void {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Detect direct execution in a cross-platform way. The naive
+// `file://${process.argv[1]}` comparison breaks on Windows because
+// process.argv[1] uses backslashes while import.meta.url uses forward
+// slashes + `file:///` (three slashes) for absolute paths.
+const entry = process.argv[1];
+const isDirectRun = entry ? import.meta.url === pathToFileURL(entry).href : false;
+
+if (isDirectRun) {
+  // Auto-load .env for local dev (Node 20.12+ native, no dep)
+  const envPath = resolve(process.cwd(), '.env');
+  if (existsSync(envPath) && typeof process.loadEnvFile === 'function') {
+    process.loadEnvFile(envPath);
+  }
   startUi();
 }
