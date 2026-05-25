@@ -2,13 +2,572 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>SGiQ-AlphaStack — loading</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SGiQ-AlphaStack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  body { background: #0F172A; color: #F8FAFC; font: 14px system-ui, sans-serif; padding: 2rem; }
+  :root {
+    --bg:            #0F172A;
+    --surface:       #151E33;
+    --surface-2:     #1A2236;
+    --border:        #2A3548;
+    --border-soft:   #1F2A40;
+    --fg:            #F8FAFC;
+    --fg-2:          #CBD5E1;
+    --fg-3:          #94A3B8;
+    --fg-4:          #64748B;
+    --up:            #34D399;
+    --down:          #F87171;
+    --warn:          #FBBF24;
+    --primary:       #F59E0B;
+    --accent:        #8B5CF6;
+    --info:          #60A5FA;
+
+    /* Strategy color tokens */
+    --strat-momentum:    #F59E0B;
+    --strat-meanrev:     #8B5CF6;
+    --strat-trend:       #60A5FA;
+    --strat-alt:         #F472B6;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); }
+  body {
+    margin: 0; color: var(--fg);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 14px; line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono, .num, td.num, .stat-value { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* Header */
+  header {
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border-soft);
+    background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--up); box-shadow: 0 0 8px var(--up); animation: pulse 2.5s ease-in-out infinite; }
+  .brand h1 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  .brand .tag { color: var(--fg-4); font-size: 12px; }
+  .status { color: var(--fg-3); font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+
+  /* Kill switch banner */
+  #kill-banner {
+    display: none;
+    margin: 0;
+    padding: 10px 24px;
+    background: rgba(248, 113, 113, 0.15);
+    border-bottom: 1px solid rgba(248, 113, 113, 0.35);
+    color: var(--down);
+    font-size: 13px; font-weight: 500;
+    display: none; align-items: center; gap: 10px;
+  }
+  #kill-banner.active { display: flex; }
+  #kill-banner::before {
+    content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--down);
+    box-shadow: 0 0 12px var(--down);
+  }
+
+  /* Layout */
+  main { padding: 20px 24px 60px; max-width: 1600px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+  .col-3  { grid-column: span 3; }
+  .col-4  { grid-column: span 4; }
+  .col-5  { grid-column: span 5; }
+  .col-6  { grid-column: span 6; }
+  .col-7  { grid-column: span 7; }
+  .col-8  { grid-column: span 8; }
+  .col-12 { grid-column: span 12; }
+  @media (max-width: 1024px) { .col-3,.col-4,.col-5,.col-7,.col-8 { grid-column: span 6; } }
+  @media (max-width: 640px)  { .col-3,.col-4,.col-5,.col-6,.col-7,.col-8 { grid-column: span 12; } }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 0 0 12px; gap: 8px;
+  }
+  .card h2 {
+    margin: 0;
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--fg-3);
+  }
+  .card .sub { color: var(--fg-4); font-size: 11px; }
+
+  /* KPI tiles */
+  .kpi .stat-label { color: var(--fg-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .kpi .stat-value { font-size: 24px; font-weight: 600; margin-top: 4px; letter-spacing: -0.01em; }
+  .kpi .stat-delta { font-size: 12px; margin-top: 2px; color: var(--fg-4); }
+  .kpi .stat-delta.up   { color: var(--up); }
+  .kpi .stat-delta.down { color: var(--down); }
+  .kpi .stat-delta.warn { color: var(--warn); }
+
+  /* Drawdown gauge specific */
+  #dd-gauge-wrap { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+  #dd-bar-wrap { flex: 1; height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; position: relative; }
+  #dd-bar {
+    position: absolute; top: 0; left: 0;
+    height: 100%; background: linear-gradient(90deg, var(--up) 0%, var(--warn) 60%, var(--down) 100%);
+    width: 0%; transition: width 200ms ease;
+  }
+  #dd-threshold-mark {
+    position: absolute; top: -2px; height: 12px; width: 1px; background: var(--down);
+  }
+
+  /* Strategy P&L tile */
+  .strat-tile {
+    background: var(--surface-2);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .strat-tile.disabled { opacity: 0.4; }
+  .strat-tile .head { display: flex; justify-content: space-between; align-items: center; }
+  .strat-tile .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 6px; vertical-align: middle; }
+  .strat-tile .name { font-size: 13px; font-weight: 600; }
+  .strat-tile .meta { color: var(--fg-4); font-size: 11px; }
+  .strat-tile .pnl { font-size: 18px; font-weight: 600; font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .strat-tile .pnl.up   { color: var(--up); }
+  .strat-tile .pnl.down { color: var(--down); }
+  .strat-tile .stats { display: flex; gap: 10px; color: var(--fg-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--border-soft); }
+  th {
+    color: var(--fg-4); font-weight: 500;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+    padding-bottom: 6px;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; }
+  .table-wrap { max-height: 360px; overflow: auto; }
+  .table-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+  .table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Pills */
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px; font-size: 11px;
+    font-weight: 500;
+    border: 1px solid transparent;
+  }
+  .pill.buy        { background: rgba(52,211,153,0.10); color: var(--up); border-color: rgba(52,211,153,0.22); }
+  .pill.sell       { background: rgba(245,158,11,0.12); color: var(--primary); border-color: rgba(245,158,11,0.30); }
+  .pill.accepted, .pill.filled { background: rgba(52,211,153,0.15); color: var(--up); }
+  .pill.skipped    { background: rgba(251,191,36,0.15); color: var(--warn); border-color: rgba(251,191,36,0.30); }
+  .pill.error, .pill.rejected, .pill.stopped { background: rgba(248,113,113,0.15); color: var(--down); }
+  .pill.open       { background: rgba(96,165,250,0.15); color: var(--info); }
+  .pill.closed     { background: rgba(148,163,184,0.15); color: var(--fg-3); }
+  .pill.paper      { background: rgba(148,163,184,0.15); color: var(--fg-2); }
+  .pill.live       { background: rgba(248,113,113,0.15); color: var(--down); }
+
+  .strat-chip { display: inline-flex; align-items: center; font-weight: 500; font-size: 12px; }
+  .strat-chip .swatch { width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+
+  /* Chart wrappers */
+  .chart-wrap { position: relative; width: 100%; }
+  .h-200 { height: 200px; }
+  .h-260 { height: 260px; }
+
+  .empty { color: var(--fg-4); font-style: italic; padding: 28px 12px; text-align: center; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+  }
 </style>
 </head>
 <body>
-<h1>SGiQ-AlphaStack</h1>
-<p>Dashboard placeholder — real UI lands in the next commit.</p>
+
+<header>
+  <div class="brand">
+    <span class="dot" id="live-dot" aria-hidden="true"></span>
+    <h1>SGiQ-AlphaStack</h1>
+    <span class="tag">multi-strategy · paper</span>
+  </div>
+  <div class="status" id="status">loading…</div>
+</header>
+
+<div id="kill-banner">
+  <span><strong>KILL SWITCH TRIPPED</strong> — monthly drawdown breach. All new signals are blocked until manual reset.</span>
+</div>
+
+<main>
+  <!-- KPI row -->
+  <section class="grid" style="margin-bottom: 16px;">
+    <div class="card kpi col-3">
+      <div class="stat-label">Equity</div>
+      <div class="stat-value" id="kpi-equity">—</div>
+      <div class="stat-delta" id="kpi-peak">peak —</div>
+    </div>
+    <div class="card kpi col-3">
+      <div class="stat-label">MTD Drawdown</div>
+      <div class="stat-value" id="kpi-drawdown">—</div>
+      <div id="dd-gauge-wrap">
+        <div id="dd-bar-wrap"><div id="dd-bar"></div><div id="dd-threshold-mark"></div></div>
+      </div>
+    </div>
+    <div class="card kpi col-3">
+      <div class="stat-label">Open positions</div>
+      <div class="stat-value" id="kpi-positions">—</div>
+      <div class="stat-delta">cap <span id="kpi-cap">5</span></div>
+    </div>
+    <div class="card kpi col-3">
+      <div class="stat-label">Signals · last 24h</div>
+      <div class="stat-value" id="kpi-signals">—</div>
+      <div class="stat-delta"><span id="kpi-accepted">—</span> accepted</div>
+    </div>
+  </section>
+
+  <!-- Per-strategy P&L tiles -->
+  <section class="grid" style="margin-bottom: 16px;">
+    <div class="card col-12">
+      <div class="card-head">
+        <h2>Strategies</h2>
+        <span class="sub" id="strat-sub">—</span>
+      </div>
+      <div id="strat-tiles" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;"></div>
+    </div>
+  </section>
+
+  <!-- Charts row -->
+  <section class="grid" style="margin-bottom: 16px;">
+    <div class="card col-7">
+      <div class="card-head">
+        <h2>Equity curve &amp; drawdown</h2>
+        <span class="sub">month-to-date</span>
+      </div>
+      <div class="chart-wrap h-260"><canvas id="chart-equity"></canvas></div>
+    </div>
+    <div class="card col-5">
+      <div class="card-head">
+        <h2>Signals: accepted vs skipped</h2>
+        <span class="sub">last 24h, by strategy</span>
+      </div>
+      <div class="chart-wrap h-260"><canvas id="chart-signals"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Positions + signals -->
+  <section class="grid" style="margin-bottom: 16px;">
+    <div class="card col-5">
+      <div class="card-head">
+        <h2>Open positions</h2>
+        <span class="sub" id="pos-sub">0</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Strategy</th><th>Symbol</th><th class="num">Qty</th><th class="num">Avg cost</th><th class="num">SL / TP</th></tr></thead>
+          <tbody id="positions"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card col-7">
+      <div class="card-head">
+        <h2>Recent signals</h2>
+        <span class="sub" id="sig-sub">0</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>When</th><th>Strategy</th><th>Symbol</th><th>Side</th><th class="num">Conf</th><th>Status</th></tr></thead>
+          <tbody id="signals"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Runs + orders -->
+  <section class="grid">
+    <div class="card col-5">
+      <div class="card-head">
+        <h2>Recent runs</h2>
+        <span class="sub">last 5 heartbeats</span>
+      </div>
+      <div id="runs"></div>
+    </div>
+    <div class="card col-7">
+      <div class="card-head">
+        <h2>Recent orders</h2>
+        <span class="sub" id="ord-sub">0</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>When</th><th>Strategy</th><th>Symbol</th><th>Side</th><th class="num">Notional</th><th class="num">Filled @</th><th>Status</th></tr></thead>
+          <tbody id="orders"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ─── Chart.js defaults (dark theme) ────────────────────────────────────
+Chart.defaults.color = '#94A3B8';
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.borderColor = '#1F2A40';
+Chart.defaults.scale.grid.color = '#1F2A40';
+
+const STRAT_COLORS = {
+  momentum_breakout: '#F59E0B',
+  mean_reversion:    '#8B5CF6',
+  trend_following:   '#60A5FA',
+  alt_speculation:   '#F472B6',
+};
+const stratColor = (kind) => STRAT_COLORS[kind] ?? '#94A3B8';
+
+// ─── helpers ───────────────────────────────────────────────────────────
+const fmtUsd = (n) => n == null ? '—' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = (n) => n == null ? '—' : (Number(n) * 100).toFixed(2) + '%';
+const fmtNum = (n, dp = 2) => n == null || n === '' ? '' : Number(n).toFixed(dp);
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+const pill = (cls, txt) => `<span class="pill ${cls}">${txt}</span>`;
+const stratChip = (name, kind) => `<span class="strat-chip"><span class="swatch" style="background:${stratColor(kind)}"></span>${name?.replace(/_v\d+$/, '') ?? '—'}</span>`;
+
+async function fetchJson(url) {
+  const r = await fetch(url, { credentials: 'same-origin' });
+  if (!r.ok) throw new Error(url + ' → ' + r.status);
+  return r.json();
+}
+
+const charts = {};
+function ensureChart(id, factory) {
+  if (charts[id]) return charts[id];
+  const el = document.getElementById(id);
+  if (!el) return null;
+  charts[id] = factory(el.getContext('2d'));
+  return charts[id];
+}
+
+// ─── renderers ─────────────────────────────────────────────────────────
+function renderSummary(s) {
+  document.getElementById('kpi-equity').textContent = fmtUsd(s.equity);
+  document.getElementById('kpi-peak').textContent = 'peak ' + fmtUsd(s.peakEquity);
+  document.getElementById('kpi-drawdown').textContent = fmtPct(s.drawdownPct);
+  document.getElementById('kpi-positions').textContent = s.openPositions;
+  document.getElementById('kpi-signals').textContent = s.signalsLast24h;
+  document.getElementById('kpi-accepted').textContent = s.acceptedLast24h;
+
+  // Drawdown gauge: shade 0..killThreshold; we'll fetch threshold from cfg if exposed.
+  // For now hardcode the default 15% (matches KILL_SWITCH_DRAWDOWN_PCT default).
+  const dd = Math.abs(Number(s.drawdownPct ?? 0));
+  const threshold = 0.15;
+  const pct = Math.min(100, (dd / threshold) * 100);
+  document.getElementById('dd-bar').style.width = pct + '%';
+  document.getElementById('dd-threshold-mark').style.left = '100%';
+
+  // Kill banner
+  const banner = document.getElementById('kill-banner');
+  banner.classList.toggle('active', s.killSwitchTripped);
+  document.getElementById('live-dot').style.background = s.killSwitchTripped ? 'var(--down)' : 'var(--up)';
+}
+
+function renderStrategies(strats, signals, orders) {
+  const container = document.getElementById('strat-tiles');
+  document.getElementById('strat-sub').textContent = `${strats.filter(s => s.enabled).length} enabled / ${strats.length} total`;
+  if (!strats.length) { container.innerHTML = '<div class="empty">no strategies seeded</div>'; return; }
+  container.innerHTML = strats.map((s) => {
+    const sigsForStrat = signals.filter((x) => x.strategyName === s.name);
+    const accepted = sigsForStrat.filter((x) => !x.skippedReason).length;
+    const skipped = sigsForStrat.length - accepted;
+    const ordersForStrat = orders.filter((x) => x.strategyName === s.name);
+    // P&L placeholder — Phase 2 doesn't yet have per-strategy realised PnL
+    // (positions table tracks realisedPnl per row; aggregating left for next commit).
+    return `
+      <div class="strat-tile ${s.enabled ? '' : 'disabled'}">
+        <div class="head">
+          <div>
+            <span class="swatch" style="background:${stratColor(s.kind)}"></span>
+            <span class="name">${s.name.replace(/_v\d+$/, '')}</span>
+          </div>
+          ${s.enabled ? pill('open', 'enabled') : pill('closed', 'off')}
+        </div>
+        <div class="meta">weight ${(Number(s.weight) * 100).toFixed(0)}% · ${s.kind}</div>
+        <div class="stats">
+          <span>${sigsForStrat.length} signals (24h)</span>
+          <span>${ordersForStrat.length} orders</span>
+        </div>
+        <div class="meta">accepted ${accepted} · skipped ${skipped}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderPositions(list) {
+  document.getElementById('pos-sub').textContent = list.length;
+  const el = document.getElementById('positions');
+  if (!list.length) { el.innerHTML = '<tr><td colspan="5" class="empty">no positions yet</td></tr>'; return; }
+  el.innerHTML = list.filter((p) => p.status === 'open').map((p) => `
+    <tr>
+      <td>${stratChip(p.strategyName, p.strategyName?.split('_v')[0])}</td>
+      <td>${p.symbol}</td>
+      <td class="num">${fmtNum(p.qty, 8)}</td>
+      <td class="num">${fmtUsd(p.avgCost)}</td>
+      <td class="num" style="font-size: 11px;">${p.stopLoss ? fmtUsd(p.stopLoss) : '—'} / ${p.takeProfit ? fmtUsd(p.takeProfit) : '—'}</td>
+    </tr>`).join('') || '<tr><td colspan="5" class="empty">no open positions</td></tr>';
+}
+
+function renderSignals(list) {
+  document.getElementById('sig-sub').textContent = list.length;
+  const el = document.getElementById('signals');
+  if (!list.length) { el.innerHTML = '<tr><td colspan="6" class="empty">no signals yet</td></tr>'; return; }
+  el.innerHTML = list.slice(0, 40).map((s) => `
+    <tr>
+      <td class="mono" style="color: var(--fg-3); font-size: 11px;">${fmtDate(s.createdAt)}</td>
+      <td>${stratChip(s.strategyName, s.strategyKind)}</td>
+      <td>${s.symbol}</td>
+      <td>${pill(s.side, s.side)}</td>
+      <td class="num">${Number(s.confidence).toFixed(2)}</td>
+      <td>${s.skippedReason ? pill('skipped', 'skipped') : pill('accepted', 'accepted')}</td>
+    </tr>`).join('');
+}
+
+function renderOrders(list) {
+  document.getElementById('ord-sub').textContent = list.length;
+  const el = document.getElementById('orders');
+  if (!list.length) { el.innerHTML = '<tr><td colspan="7" class="empty">no orders yet</td></tr>'; return; }
+  el.innerHTML = list.slice(0, 50).map((o) => `
+    <tr>
+      <td class="mono" style="color: var(--fg-3); font-size: 11px;">${fmtDate(o.createdAt)}</td>
+      <td>${stratChip(o.strategyName, o.strategyName?.split('_v')[0])}</td>
+      <td>${o.symbol}</td>
+      <td>${pill(o.side, o.side)}</td>
+      <td class="num">${o.notional ? fmtUsd(o.notional) : ''}</td>
+      <td class="num">${o.filledAvgPrice ? fmtUsd(o.filledAvgPrice) : ''}</td>
+      <td>${pill(o.status, o.status)}</td>
+    </tr>`).join('');
+}
+
+function renderRuns(list) {
+  const el = document.getElementById('runs');
+  if (!list.length) { el.innerHTML = '<div class="empty">no runs yet — try <code>npm run run:once</code></div>'; return; }
+  el.innerHTML = list.slice(0, 5).map((r) => {
+    const s = r.summary || {};
+    return `
+      <div style="padding: 10px 0; border-bottom: 1px dashed var(--border-soft);">
+        <div style="display:flex; justify-content:space-between;">
+          <span class="mono" style="color: var(--fg-2); font-size: 12px;">${fmtDate(r.ranAt)}</span>
+          <span>${pill(r.mode, r.mode)}</span>
+        </div>
+        <div style="margin-top: 6px; color: var(--fg-3); font-size: 12px;">
+          ${s.signalCount ?? 0} signals · ${s.acceptedCount ?? 0} accepted · dd ${fmtPct(s.drawdownPct ?? 0)}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderEquityChart(ddRows) {
+  const labels = ddRows.slice().reverse().map((d) => fmtDate(d.updatedAt));
+  const equity = ddRows.slice().reverse().map((d) => Number(d.currentEquity));
+  const peak = ddRows.slice().reverse().map((d) => Number(d.peakEquity));
+  const dd = ddRows.slice().reverse().map((d) => Number(d.drawdownPct) * 100);
+
+  const c = ensureChart('chart-equity', (ctx) => new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Equity',  data: equity, borderColor: '#34D399', backgroundColor: 'rgba(52,211,153,0.10)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+      { label: 'Peak',    data: peak,   borderColor: '#94A3B8', borderDash: [4, 4], borderWidth: 1, pointRadius: 0, fill: false, yAxisID: 'y' },
+      { label: 'DD %',    data: dd,     borderColor: '#F87171', backgroundColor: 'rgba(248,113,113,0.08)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1' },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', align: 'end', labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true } },
+        tooltip: { backgroundColor: '#0F172A', borderColor: '#2A3548', borderWidth: 1, padding: 10 },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 16 } },
+        y:  { position: 'left',  ticks: { callback: (v) => '$' + v } },
+        y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: (v) => v.toFixed(1) + '%' } },
+      },
+    },
+  }));
+  c.data.labels = labels;
+  c.data.datasets[0].data = equity;
+  c.data.datasets[1].data = peak;
+  c.data.datasets[2].data = dd;
+  c.update('none');
+}
+
+function renderSignalsChart(signals, strats) {
+  const stratNames = strats.map((s) => s.name);
+  const accepted = stratNames.map((n) => signals.filter((s) => s.strategyName === n && !s.skippedReason).length);
+  const skipped  = stratNames.map((n) => signals.filter((s) => s.strategyName === n &&  s.skippedReason).length);
+  const colors = strats.map((s) => stratColor(s.kind));
+
+  const c = ensureChart('chart-signals', (ctx) => new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: stratNames.map((n) => n.replace(/_v\d+$/, '')),
+      datasets: [
+        { label: 'Accepted', data: accepted, backgroundColor: colors, borderRadius: 3 },
+        { label: 'Skipped',  data: skipped,  backgroundColor: '#FBBF24', borderRadius: 3 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', align: 'end', labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true } },
+        tooltip: { backgroundColor: '#0F172A', borderColor: '#2A3548', borderWidth: 1, padding: 10 },
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false } },
+        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } },
+      },
+    },
+  }));
+  c.data.labels = stratNames.map((n) => n.replace(/_v\d+$/, ''));
+  c.data.datasets[0].data = accepted;
+  c.data.datasets[1].data = skipped;
+  c.update('none');
+}
+
+// ─── Refresh loop ──────────────────────────────────────────────────────
+async function refresh() {
+  try {
+    const [summary, strats, runs, sigs, ords, pos, dd] = await Promise.all([
+      fetchJson('/api/summary'),
+      fetchJson('/api/strategies'),
+      fetchJson('/api/runs'),
+      fetchJson('/api/signals'),
+      fetchJson('/api/orders'),
+      fetchJson('/api/positions'),
+      fetchJson('/api/drawdown'),
+    ]);
+
+    renderSummary(summary);
+    renderStrategies(strats, sigs, ords);
+    renderPositions(pos);
+    renderSignals(sigs);
+    renderOrders(ords);
+    renderRuns(runs);
+    renderEquityChart(dd);
+    renderSignalsChart(sigs, strats);
+
+    document.getElementById('status').textContent = 'updated ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    document.getElementById('status').textContent = 'error: ' + e.message;
+    document.getElementById('live-dot').style.background = 'var(--down)';
+  }
+}
+
+refresh();
+setInterval(refresh, 15_000);
+</script>
 </body>
 </html>
