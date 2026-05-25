@@ -1,4 +1,18 @@
 import { z } from 'zod';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+// Auto-load .env if present (Node 20.12+ native, no dep). Idempotent —
+// later writes to process.env override earlier ones. No-op on Railway
+// where no .env file exists and env vars are injected natively.
+//
+// Putting this at module-load time means every entry point (cron, run:once,
+// backtest, ui:dev, db:migrate, db:seed) picks up the local .env without
+// each having to opt in.
+const envPath = resolve(process.cwd(), '.env');
+if (existsSync(envPath) && typeof process.loadEnvFile === 'function') {
+  try { process.loadEnvFile(envPath); } catch { /* malformed or already loaded */ }
+}
 
 const csv = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
 

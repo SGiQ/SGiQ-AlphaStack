@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
@@ -210,10 +210,6 @@ const entry = process.argv[1];
 const isDirectRun = entry ? import.meta.url === pathToFileURL(entry).href : false;
 
 if (isDirectRun) {
-  // Auto-load .env for local dev (Node 20.12+ native, no dep)
-  const envPath = resolve(process.cwd(), '.env');
-  if (existsSync(envPath) && typeof process.loadEnvFile === 'function') {
-    process.loadEnvFile(envPath);
-  }
+  // .env is auto-loaded at config import time
   startUi();
 }
