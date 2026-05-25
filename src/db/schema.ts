@@ -1,22 +1,32 @@
 import {
-  pgTable, serial, text, timestamp, numeric, jsonb, uuid, pgEnum,
+  pgSchema,
+  serial, text, timestamp, numeric, jsonb, uuid,
   index, uniqueIndex, boolean, integer,
 } from 'drizzle-orm/pg-core';
 
-export const sideEnum = pgEnum('order_side', ['buy', 'sell']);
-export const runModeEnum = pgEnum('run_mode', ['paper', 'live']);
-export const strategyKindEnum = pgEnum('strategy_kind', [
+// Everything AlphaStack creates lives under the `alphastack` Postgres schema.
+// This keeps the bot in the same physical database as DCATradeBot (which uses
+// the default `public` schema) without enum name collisions.
+export const alphastack = pgSchema('alphastack');
+
+// ---------------------------------------------------------------------------
+// Enums (namespaced inside alphastack.*)
+// ---------------------------------------------------------------------------
+export const sideEnum = alphastack.enum('order_side', ['buy', 'sell']);
+export const runModeEnum = alphastack.enum('run_mode', ['paper', 'live']);
+export const strategyKindEnum = alphastack.enum('strategy_kind', [
   'momentum_breakout',
   'mean_reversion',
   'trend_following',
   'alt_speculation',
 ]);
-export const positionStatusEnum = pgEnum('position_status', ['open', 'closed', 'stopped']);
+export const positionStatusEnum = alphastack.enum('position_status', ['open', 'closed', 'stopped']);
+export const approvalStatusEnum = alphastack.enum('approval_status', ['pending', 'approved', 'rejected', 'expired']);
 
 // ---------------------------------------------------------------------------
 // strategies — one row per strategy, drives the executor's enabled set + weights
 // ---------------------------------------------------------------------------
-export const strategies = pgTable(
+export const strategies = alphastack.table(
   'strategies',
   {
     id: serial('id').primaryKey(),
@@ -24,7 +34,7 @@ export const strategies = pgTable(
     kind: strategyKindEnum('kind').notNull(),
     enabled: boolean('enabled').notNull().default(true),
     weight: numeric('weight', { precision: 5, scale: 4 }).notNull().default('0.0000'),
-    params: jsonb('params').notNull().default({}), // per-strategy tunables
+    params: jsonb('params').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -34,9 +44,9 @@ export const strategies = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// run_logs — one row per cron tick
+// run_logs
 // ---------------------------------------------------------------------------
-export const runLogs = pgTable('run_logs', {
+export const runLogs = alphastack.table('run_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
   ranAt: timestamp('ran_at', { withTimezone: true }).notNull().defaultNow(),
   mode: runModeEnum('mode').notNull(),
@@ -44,9 +54,9 @@ export const runLogs = pgTable('run_logs', {
 });
 
 // ---------------------------------------------------------------------------
-// signals — one row per signal emitted, regardless of execution outcome
+// signals
 // ---------------------------------------------------------------------------
-export const signals = pgTable(
+export const signals = alphastack.table(
   'signals',
   {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -54,7 +64,7 @@ export const signals = pgTable(
     strategyId: integer('strategy_id').notNull().references(() => strategies.id),
     symbol: text('symbol').notNull(),
     side: sideEnum('side').notNull(),
-    confidence: numeric('confidence', { precision: 4, scale: 3 }).notNull(), // 0..1
+    confidence: numeric('confidence', { precision: 4, scale: 3 }).notNull(),
     suggestedNotional: numeric('suggested_notional', { precision: 18, scale: 8 }),
     suggestedQty: numeric('suggested_qty', { precision: 24, scale: 12 }),
     stopLoss: numeric('stop_loss', { precision: 18, scale: 8 }),
@@ -71,9 +81,9 @@ export const signals = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// positions — open positions with attribution to owning strategy
+// positions
 // ---------------------------------------------------------------------------
-export const positions = pgTable(
+export const positions = alphastack.table(
   'positions',
   {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -96,9 +106,9 @@ export const positions = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// orders — what we actually sent to the broker
+// orders
 // ---------------------------------------------------------------------------
-export const orders = pgTable(
+export const orders = alphastack.table(
   'orders',
   {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -123,13 +133,13 @@ export const orders = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// performance_by_strategy — one row per (month, strategy)
+// performance_by_strategy
 // ---------------------------------------------------------------------------
-export const performanceByStrategy = pgTable(
+export const performanceByStrategy = alphastack.table(
   'performance_by_strategy',
   {
     id: serial('id').primaryKey(),
-    yearMonth: text('year_month').notNull(), // 'YYYY-MM'
+    yearMonth: text('year_month').notNull(),
     strategyId: integer('strategy_id').notNull().references(() => strategies.id),
     pnl: numeric('pnl', { precision: 18, scale: 8 }).notNull().default('0'),
     tradeCount: integer('trade_count').notNull().default(0),
@@ -143,16 +153,16 @@ export const performanceByStrategy = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// drawdown_state — global month-to-date drawdown tracking + kill switch
+// drawdown_state
 // ---------------------------------------------------------------------------
-export const drawdownState = pgTable(
+export const drawdownState = alphastack.table(
   'drawdown_state',
   {
     id: serial('id').primaryKey(),
     yearMonth: text('year_month').notNull(),
     peakEquity: numeric('peak_equity', { precision: 18, scale: 8 }).notNull(),
     currentEquity: numeric('current_equity', { precision: 18, scale: 8 }).notNull(),
-    drawdownPct: numeric('drawdown_pct', { precision: 6, scale: 4 }).notNull(), // -0.1234
+    drawdownPct: numeric('drawdown_pct', { precision: 6, scale: 4 }).notNull(),
     killSwitchTripped: boolean('kill_switch_tripped').notNull().default(false),
     trippedAt: timestamp('tripped_at', { withTimezone: true }),
     resetAt: timestamp('reset_at', { withTimezone: true }),
@@ -164,11 +174,9 @@ export const drawdownState = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// approvals — same shape as DCATradeBot's, for live-trade gating
+// approvals
 // ---------------------------------------------------------------------------
-export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected', 'expired']);
-
-export const approvals = pgTable(
+export const approvals = alphastack.table(
   'approvals',
   {
     id: uuid('id').primaryKey().defaultRandom(),

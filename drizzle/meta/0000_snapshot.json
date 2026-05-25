@@ -1,12 +1,12 @@
 {
-  "id": "40b57c60-40e4-43a6-b6c4-49e3d48c0d9a",
+  "id": "1d10e26c-d500-4f05-9984-5c94c6ca7409",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.approvals": {
+    "alphastack.approvals": {
       "name": "approvals",
-      "schema": "",
+      "schema": "alphastack",
       "columns": {
         "id": {
           "name": "id",
@@ -36,7 +36,7 @@
         "status": {
           "name": "status",
           "type": "approval_status",
-          "typeSchema": "public",
+          "typeSchema": "alphastack",
           "primaryKey": false,
           "notNull": true,
           "default": "'pending'"
@@ -83,6 +83,7 @@
           "name": "approvals_run_id_run_logs_id_fk",
           "tableFrom": "approvals",
           "tableTo": "run_logs",
+          "schemaTo": "alphastack",
           "columnsFrom": [
             "run_id"
           ],
@@ -96,6 +97,7 @@
           "name": "approvals_signal_id_signals_id_fk",
           "tableFrom": "approvals",
           "tableTo": "signals",
+          "schemaTo": "alphastack",
           "columnsFrom": [
             "signal_id"
           ],
@@ -112,9 +114,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.drawdown_state": {
+    "alphastack.drawdown_state": {
       "name": "drawdown_state",
-      "schema": "",
+      "schema": "alphastack",
       "columns": {
         "id": {
           "name": "id",
@@ -197,9 +199,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.orders": {
+    "alphastack.orders": {
       "name": "orders",
-      "schema": "",
+      "schema": "alphastack",
       "columns": {
         "id": {
           "name": "id",
@@ -247,7 +249,7 @@
         "side": {
           "name": "side",
           "type": "order_side",
-          "typeSchema": "public",
+          "typeSchema": "alphastack",
           "primaryKey": false,
           "notNull": true
         },
@@ -326,6 +328,7 @@
           "name": "orders_run_id_run_logs_id_fk",
           "tableFrom": "orders",
           "tableTo": "run_logs",
+          "schemaTo": "alphastack",
           "columnsFrom": [
             "run_id"
           ],
@@ -339,6 +342,7 @@
           "name": "orders_signal_id_signals_id_fk",
           "tableFrom": "orders",
           "tableTo": "signals",
+          "schemaTo": "alphastack",
           "columnsFrom": [
             "signal_id"
           ],
@@ -352,6 +356,7 @@
           "name": "orders_strategy_id_strategies_id_fk",
           "tableFrom": "orders",
           "tableTo": "strategies",
+          "schemaTo": "alphastack",
           "columnsFrom": [
             "strategy_id"
           ],
@@ -368,9 +373,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.performance_by_strategy": {
+    "alphastack.performance_by_strategy": {
       "name": "performance_by_strategy",
-      "schema": "",
+      "schema": "alphastack",
       "columns": {
         "id": {
           "name": "id",
@@ -454,6 +459,7 @@
           "name": "performance_by_strategy_strategy_id_strategies_id_fk",
           "tableFrom": "performance_by_strategy",
           "tableTo": "strategies",
+          "schemaTo": "alphastack",
           "columnsFrom": [
             "strategy_id"
           ],
@@ -470,9 +476,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.positions": {
+    "alphastack.positions": {
       "name": "positions",
-      "schema": "",
+      "schema": "alphastack",
       "columns": {
         "id": {
           "name": "id",
@@ -520,7 +526,7 @@
         "status": {
           "name": "status",
           "type": "position_status",
-          "typeSchema": "public",
+          "typeSchema": "alphastack",
           "primaryKey": false,
           "notNull": true,
           "default": "'open'"
@@ -597,6 +603,7 @@
           "name": "positions_strategy_id_strategies_id_fk",
           "tableFrom": "positions",
           "tableTo": "strategies",
+          "schemaTo": "alphastack",
           "columnsFrom": [
             "strategy_id"
           ],
@@ -613,9 +620,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.run_logs": {
+    "alphastack.run_logs": {
       "name": "run_logs",
-      "schema": "",
+      "schema": "alphastack",
       "columns": {
         "id": {
           "name": "id",
@@ -634,7 +641,7 @@
         "mode": {
           "name": "mode",
           "type": "run_mode",
-          "typeSchema": "public",
+          "typeSchema": "alphastack",
           "primaryKey": false,
           "notNull": true
         },
@@ -653,9 +660,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.signals": {
+    "alphastack.signals": {
       "name": "signals",
-      "schema": "",
+      "schema": "alphastack",
       "columns": {
         "id": {
           "name": "id",
@@ -685,7 +692,7 @@
         "side": {
           "name": "side",
           "type": "order_side",
-          "typeSchema": "public",
+          "typeSchema": "alphastack",
           "primaryKey": false,
           "notNull": true
         },
@@ -782,6 +789,7 @@
           "name": "signals_run_id_run_logs_id_fk",
           "tableFrom": "signals",
           "tableTo": "run_logs",
+          "schemaTo": "alphastack",
           "columnsFrom": [
             "run_id"
           ],
@@ -795,6 +803,7 @@
           "name": "signals_strategy_id_strategies_id_fk",
           "tableFrom": "signals",
           "tableTo": "strategies",
+          "schemaTo": "alphastack",
           "columnsFrom": [
             "strategy_id"
           ],
@@ -811,9 +820,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.strategies": {
+    "alphastack.strategies": {
       "name": "strategies",
-      "schema": "",
+      "schema": "alphastack",
       "columns": {
         "id": {
           "name": "id",
@@ -830,7 +839,7 @@
         "kind": {
           "name": "kind",
           "type": "strategy_kind",
-          "typeSchema": "public",
+          "typeSchema": "alphastack",
           "primaryKey": false,
           "notNull": true
         },
@@ -896,9 +905,9 @@
     }
   },
   "enums": {
-    "public.approval_status": {
+    "alphastack.approval_status": {
       "name": "approval_status",
-      "schema": "public",
+      "schema": "alphastack",
       "values": [
         "pending",
         "approved",
@@ -906,34 +915,34 @@
         "expired"
       ]
     },
-    "public.position_status": {
+    "alphastack.position_status": {
       "name": "position_status",
-      "schema": "public",
+      "schema": "alphastack",
       "values": [
         "open",
         "closed",
         "stopped"
       ]
     },
-    "public.run_mode": {
+    "alphastack.run_mode": {
       "name": "run_mode",
-      "schema": "public",
+      "schema": "alphastack",
       "values": [
         "paper",
         "live"
       ]
     },
-    "public.order_side": {
+    "alphastack.order_side": {
       "name": "order_side",
-      "schema": "public",
+      "schema": "alphastack",
       "values": [
         "buy",
         "sell"
       ]
     },
-    "public.strategy_kind": {
+    "alphastack.strategy_kind": {
       "name": "strategy_kind",
-      "schema": "public",
+      "schema": "alphastack",
       "values": [
         "momentum_breakout",
         "mean_reversion",
@@ -942,7 +951,9 @@
       ]
     }
   },
-  "schemas": {},
+  "schemas": {
+    "alphastack": "alphastack"
+  },
   "sequences": {},
   "roles": {},
   "policies": {},
