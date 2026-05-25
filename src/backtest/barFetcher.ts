@@ -9,11 +9,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR = resolve(__dirname, '../../backtest-data');
 
 // Alpaca's stated max for `limit` is 10000, but in practice the crypto
-// bars endpoint frequently returns ~1000 per page regardless. Pagination
-// always uses `next_page_token`. We set a high page cap (300) since
-// 2 years of 1H bars on two symbols can legitimately require ~20+ pages.
+// bars endpoint frequently returns ~40-200 per page regardless. Pagination
+// always uses `next_page_token`. We set a high page cap (300) since 4H
+// over 2 years can legitimately take 100+ pages.
 const PAGE_LIMIT = 10_000;
 const MAX_PAGES = 300;
+// Polite delay between consecutive page requests so we don't blow past
+// Alpaca's per-minute rate limit (200 req/min on basic plans).
+const INTER_PAGE_DELAY_MS = 250;
+// Backoff schedule when we hit a 429. Doubles each retry, capped.
+const RETRY_DELAYS_MS = [30_000, 60_000, 120_000];
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 interface BarsResponse {
   bars: Record<string, CryptoBar[]>;
@@ -56,22 +63,39 @@ export async function fetchBars(
     url.searchParams.set('limit', String(PAGE_LIMIT));
     if (pageToken) url.searchParams.set('page_token', pageToken);
 
-    const res = await request(url.toString(), {
-      method: 'GET',
-      headers: {
-        'APCA-API-KEY-ID': cfg.ALPACA_API_KEY,
-        'APCA-API-SECRET-KEY': cfg.ALPACA_SECRET_KEY,
-      },
-    });
-    const text = await res.body.text();
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw new Error(`Alpaca bars ${symbol} ${timeframe} -> ${res.statusCode}: ${text}`);
+    // Fetch with 429 retry. Each retry waits then re-fires the same URL.
+    let data: BarsResponse | null = null;
+    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+      const res = await request(url.toString(), {
+        method: 'GET',
+        headers: {
+          'APCA-API-KEY-ID': cfg.ALPACA_API_KEY,
+          'APCA-API-SECRET-KEY': cfg.ALPACA_SECRET_KEY,
+        },
+      });
+      const text = await res.body.text();
+      if (res.statusCode === 429 && attempt < RETRY_DELAYS_MS.length) {
+        const delay = RETRY_DELAYS_MS[attempt]!;
+        process.stdout.write(`\r[barFetcher] ${symbol} ${timeframe} rate-limited, sleeping ${Math.round(delay / 1000)}s (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length})...     `);
+        await sleep(delay);
+        continue;
+      }
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        console.log('');
+        throw new Error(`Alpaca bars ${symbol} ${timeframe} -> ${res.statusCode}: ${text}`);
+      }
+      data = JSON.parse(text) as BarsResponse;
+      break;
     }
-    const data = JSON.parse(text) as BarsResponse;
+    if (!data) {
+      console.log('');
+      throw new Error(`Alpaca bars ${symbol} ${timeframe} failed after ${RETRY_DELAYS_MS.length} 429 retries`);
+    }
+
     const batch = data.bars?.[symbol] ?? [];
     all.push(...batch);
     page++;
-    process.stdout.write(`\r[barFetcher] ${symbol} ${timeframe} page ${page}: +${batch.length} bars (total ${all.length})`);
+    process.stdout.write(`\r[barFetcher] ${symbol} ${timeframe} page ${page}: +${batch.length} bars (total ${all.length})            `);
 
     // Detect token-loop bug (returning same token forever)
     if (data.next_page_token && data.next_page_token === prevPageToken) {
@@ -85,6 +109,9 @@ export async function fetchBars(
       console.log('');
       throw new Error(`Pagination exceeded ${MAX_PAGES} pages for ${symbol} ${timeframe} (got ${all.length} bars so far)`);
     }
+
+    // Polite delay so we don't get rate-limited on long fetches
+    if (pageToken) await sleep(INTER_PAGE_DELAY_MS);
   } while (pageToken);
 
   console.log(''); // newline after progress line
