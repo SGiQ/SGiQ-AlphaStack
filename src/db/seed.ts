@@ -41,9 +41,13 @@ async function main() {
         },
       },
       {
+        // Disabled after 2022-2026 (4yr) backtest: 61 trades, 32.8% win rate,
+        // -$2,021 P&L. The most-traded strategy was the biggest loser — the
+        // pullback-reclaim entry generates noise, not edge. Needs fundamental
+        // rework (longer pullback window, multi-confirm) before re-enabling.
         name: 'trend_following_v1',
         kind: 'trend_following',
-        enabled: true,
+        enabled: false,
         weight: cfg.WEIGHT_TREND_FOLLOWING.toFixed(4),
         params: {
           ema_fast: 21,
@@ -51,6 +55,7 @@ async function main() {
           ema_slow: 200,
           pullback_required: true,
           timeframes: ['1Day'],
+          disabled_reason: '4yr backtest: 32.8% win rate, -$2,021 net P&L',
         },
       },
       {
