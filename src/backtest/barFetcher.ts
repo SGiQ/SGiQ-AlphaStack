@@ -8,13 +8,24 @@ import type { CryptoBar, Timeframe } from '../broker/alpacaCrypto.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR = resolve(__dirname, '../../backtest-data');
 
-// Alpaca returns at most 10k bars per page. 1H × 2 years = ~17,520 bars,
-// so 1H needs pagination. Daily and 4H fit comfortably under the limit.
+// Alpaca's stated max for `limit` is 10000, but in practice the crypto
+// bars endpoint frequently returns ~1000 per page regardless. Pagination
+// always uses `next_page_token`. We set a high page cap (300) since
+// 2 years of 1H bars on two symbols can legitimately require ~20+ pages.
 const PAGE_LIMIT = 10_000;
+const MAX_PAGES = 300;
 
 interface BarsResponse {
   bars: Record<string, CryptoBar[]>;
   next_page_token?: string | null;
+}
+
+function toIso(date: string): string {
+  // Accept either "YYYY-MM-DD" or full ISO; emit full ISO with explicit UTC.
+  // Alpaca tolerates date-only but is stricter on some plans — always send
+  // an explicit time + Z to avoid ambiguity.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return `${date}T00:00:00Z`;
+  return date;
 }
 
 /**
@@ -29,16 +40,19 @@ export async function fetchBars(
   end: string,
 ): Promise<CryptoBar[]> {
   const cfg = loadConfig();
+  const startIso = toIso(start);
+  const endIso = toIso(end);
   const all: CryptoBar[] = [];
   let pageToken: string | null = null;
+  let prevPageToken: string | null = null;
   let page = 0;
 
   do {
     const url = new URL('/v1beta3/crypto/us/bars', cfg.ALPACA_DATA_BASE_URL);
     url.searchParams.set('symbols', symbol);
     url.searchParams.set('timeframe', timeframe);
-    url.searchParams.set('start', start);
-    url.searchParams.set('end', end);
+    url.searchParams.set('start', startIso);
+    url.searchParams.set('end', endIso);
     url.searchParams.set('limit', String(PAGE_LIMIT));
     if (pageToken) url.searchParams.set('page_token', pageToken);
 
@@ -56,11 +70,24 @@ export async function fetchBars(
     const data = JSON.parse(text) as BarsResponse;
     const batch = data.bars?.[symbol] ?? [];
     all.push(...batch);
-    pageToken = data.next_page_token ?? null;
     page++;
-    if (page > 50) throw new Error(`Pagination exceeded 50 pages for ${symbol} ${timeframe}`);
+    process.stdout.write(`\r[barFetcher] ${symbol} ${timeframe} page ${page}: +${batch.length} bars (total ${all.length})`);
+
+    // Detect token-loop bug (returning same token forever)
+    if (data.next_page_token && data.next_page_token === prevPageToken) {
+      console.log('');
+      throw new Error(`Pagination loop: same next_page_token returned twice for ${symbol} ${timeframe}`);
+    }
+    prevPageToken = pageToken;
+    pageToken = data.next_page_token ?? null;
+
+    if (page > MAX_PAGES) {
+      console.log('');
+      throw new Error(`Pagination exceeded ${MAX_PAGES} pages for ${symbol} ${timeframe} (got ${all.length} bars so far)`);
+    }
   } while (pageToken);
 
+  console.log(''); // newline after progress line
   // Defensive sort — Alpaca returns sorted but make sure
   all.sort((a, b) => a.t.localeCompare(b.t));
   return all;
