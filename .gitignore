@@ -10,3 +10,5 @@ logs/
 .vscode/
 coverage/
 .claude/
+backtest-data/
+
