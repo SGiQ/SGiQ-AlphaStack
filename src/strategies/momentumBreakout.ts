@@ -34,6 +34,8 @@ export const momentumBreakout: StrategyModule<MomentumBreakoutParams> = {
     volume_mult: 1.5,
     rr_min: 3,
     rsi_overbought: 80,
+    require_rising_200d: true,
+    sma200_lookback_bars: 20,
   },
 
   evaluate(ctx: MarketContext, cfg: MomentumBreakoutParams): StrategySignal[] {
@@ -49,6 +51,20 @@ export const momentumBreakout: StrategyModule<MomentumBreakoutParams> = {
     const volumes = daily.map((b) => b.v);
     const todayClose = closes[closes.length - 1]!;
     const todayVolume = volumes[volumes.length - 1]!;
+
+    // Regime filter: 200-day SMA must be sloping upward.
+    // Backtest evidence (2022-2026): momentum loses -$3,221 in bear regimes
+    // and gains +$7,143 in bull regimes. This single filter blocks new
+    // entries when the broader trend is hostile — should preserve bull-market
+    // edge while suppressing bear-market losses.
+    if (cfg.require_rising_200d) {
+      const lookback = cfg.sma200_lookback_bars;
+      if (closes.length < 200 + lookback) return [];
+      const sma200Now = sma(closes, 200);
+      const sma200Past = sma(closes.slice(0, -lookback), 200);
+      if (!Number.isFinite(sma200Now) || !Number.isFinite(sma200Past)) return [];
+      if (sma200Now <= sma200Past) return []; // 200d trending down or flat → block
+    }
 
     // Highest high over the prior breakout_period bars, EXCLUDING today
     const priorHigh = highestHigh(

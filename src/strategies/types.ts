@@ -80,6 +80,14 @@ export interface MomentumBreakoutParams {
   volume_mult: number;         // e.g. 1.5x 20-period avg volume
   rr_min: number;              // minimum reward-to-risk (3 = 1:3)
   rsi_overbought: number;      // skip entries if RSI > this (avoid chasing)
+  /**
+   * Regime filter: require the 200-day SMA to be sloping upward (current >
+   * value `sma200_lookback_bars` ago). Suppresses trades in sustained bears
+   * where breakouts are dominated by false starts. Default true — change to
+   * false to disable the filter for parameter studies.
+   */
+  require_rising_200d: boolean;
+  sma200_lookback_bars: number; // default 20 days
 }
 
 export interface MeanReversionParams {
