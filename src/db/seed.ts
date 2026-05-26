@@ -20,11 +20,6 @@ async function main() {
           volume_mult: 1.5,
           rr_min: 3,
           rsi_overbought: 80,
-          // Regime filter: only fire entries when 200-day SMA is rising.
-          // Backtest evidence: this filter would have blocked the -$3,221
-          // bear-market losses while preserving the +$7,143 bull gains.
-          require_rising_200d: true,
-          sma200_lookback_bars: 20,
           timeframes: ['4Hour', '1Day'],
         },
       },
